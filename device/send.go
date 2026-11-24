@@ -316,16 +316,24 @@ func (device *Device) RoutineReadFromTUN() {
 		padding := device.paddings.transport.Load()
 		offset := MessageTransportHeaderSize + int(padding)
 
-		// read packets
 		count, readErr = device.tun.device.Read(bufs, sizes, offset)
+		curPadding := device.paddings.transport.Load()
+		curOffset := MessageTransportHeaderSize + int(curPadding)
 		for i := 0; i < count; i++ {
 			if sizes[i] < 1 {
 				continue
 			}
 
 			elem := elems[i]
-			elem.packet = bufs[i][offset : offset+sizes[i]]
-			elem.padding = padding
+			useOffset := offset
+			usePadding := padding
+			if curOffset != offset && curOffset+sizes[i] <= len(bufs[i]) {
+				copy(bufs[i][curOffset:curOffset+sizes[i]], bufs[i][offset:offset+sizes[i]])
+				useOffset = curOffset
+				usePadding = curPadding
+			}
+			elem.packet = bufs[i][useOffset : useOffset+sizes[i]]
+			elem.padding = usePadding
 
 			// lookup peer
 			var peer *Peer

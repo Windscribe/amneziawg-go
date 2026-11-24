@@ -138,10 +138,13 @@ func (device *Device) RoutineReceiveIncoming(
 				continue
 			}
 
-			// check size of packet
 			packet := bufsArrs[i][:size]
+			var headerNonce []byte
+			if len(packet) >= HeaderCipherNonceSize {
+				headerNonce = packet[:HeaderCipherNonceSize]
+			}
 
-			cip, err := device.HeaderProtectionCipher(packet[:HeaderCipherNonceSize])
+			cip, err := device.HeaderProtectionCipher(headerNonce)
 			if err != nil {
 				device.log.Errorf("Failed to initialize header cipher")
 				continue

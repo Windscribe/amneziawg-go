@@ -636,7 +636,14 @@ func (device *Device) JunkPackets() [][]byte {
 	max := device.junk.max.Load()
 
 	for range device.junk.count.Load() {
-		buf := make([]byte, min+fastrandn(max-min))
+		size := min
+		if max > min {
+			size = min + fastrandn(max-min)
+		}
+		if size == 0 {
+			continue
+		}
+		buf := make([]byte, size)
 		rand.Read(buf)
 		bufs = append(bufs, buf)
 	}
@@ -650,6 +657,9 @@ func (device *Device) HeaderProtectionCipher(salt []byte) (*chacha20.Cipher, err
 
 	if device.headerProtection.key.IsZero() {
 		return nil, nil
+	}
+	if len(salt) < HeaderCipherNonceSize {
+		return nil, errors.New("packet shorter than header protection nonce")
 	}
 
 	return chacha20.NewUnauthenticatedCipher(device.headerProtection.key[:], salt)
